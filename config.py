@@ -21,3 +21,9 @@ WINDOW = {
     "WIDTH":500,
     "HEIGHT":100,
 }
+
+# Index of "Blank" slide layout in a typical install of Powerpoint
+BLANK_SLIDE = 6
+
+# Template file location
+PPT_TEMPLATE = "./template2.pptx"

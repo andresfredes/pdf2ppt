@@ -24,10 +24,10 @@ business logic.
 from PyQt5.QtCore import QThread
 from PyQt5.QtWidgets import (QFileDialog, QHBoxLayout, QMainWindow, QMessageBox,
     QVBoxLayout, QWidget)
-
+import re
 from config import WINDOW
 from custom_widgets import Action, Button, Label
-from converter import Converter
+from converter import Converter, Ppt_Config
 
 class UI(QMainWindow):
     """The main window object for the Graphical User Interface.
@@ -66,7 +66,7 @@ class UI(QMainWindow):
         central = QWidget()
         layout = QVBoxLayout()
         
-        self.label = Label(text="Ready to convert")
+        self.label = Label(text="")
         layout.addWidget(self.label)
         hbox = QHBoxLayout()
         self.choose_button = Button(
@@ -85,9 +85,11 @@ class UI(QMainWindow):
 
         footer = Label(
             text="Send feedback to andres.hector.fredes@gmail.com",
-            size=15,
+            size=12,
         )
         layout.addWidget(footer)
+        central.setLayout(layout)
+        self.setCentralWidget(central)
 
     def _close(self):
         super().close()
@@ -107,6 +109,10 @@ class UI(QMainWindow):
         )
         if self.path != "":
             self.convert_button.enable()
+            # Get filename from path and account for Windows and Linux
+            pattern = "\\|/"
+            filename = re.split(pattern, self.path)[-1:]
+            self.label.setText(filename)
 
     def convert(self):
         """Primary function for the application.
@@ -120,19 +126,25 @@ class UI(QMainWindow):
         self.convert_button.disable()
         self.label.setText("Converting...")
 
+        ppt_cfg = Ppt_Config()
+        
         self.thread = QThread()
-        self.worker = Converter(self.path)
+        self.worker = Converter(self.path, ppt_cfg)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.worker.warning.connect(self.warning)
+        self.worker.warning.connect(
+            lambda: self.label.setText("Conversion failed.")
+        )
         self.thread.start()
         self.thread.finished.connect(self.choose_button.enable)
         self.thread.finished.connect(
             lambda: self.label.setText("Conversion complete!")
         )
+
 
     def warning(self):
         """Generates a pop-up warning that the conversion failed.
