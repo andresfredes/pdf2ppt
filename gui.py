@@ -105,14 +105,18 @@ class UI(QMainWindow):
         self.path = file_picker.getOpenFileName(
             None,
             "Select File",
-            "Portable Document Format (*.pdf)",
-        )
+            "PDF - Portable Document Format (*.pdf)",
+        )[0]
         if self.path != "":
-            self.convert_button.enable()
-            # Get filename from path and account for Windows and Linux
-            pattern = "\\|/"
-            filename = re.split(pattern, self.path)[-1:]
-            self.label.setText(filename)
+            if self.path.endswith(".pdf"):
+                self.convert_button.enable()
+                pattern = "/"
+                filename = re.split(pattern, self.path)[-1:][0]
+                self.label.setText(filename)
+            else:
+                self.label.setText("Invalid file type")
+        else:
+            self.label.setText("No file specified")
 
     def convert(self):
         """Primary function for the application.
@@ -132,27 +136,32 @@ class UI(QMainWindow):
         self.worker = Converter(self.path, ppt_cfg)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
+        
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.finished.connect(self.choose_button.enable)
+        self.worker.finished.connect(
+            lambda: self.label.setText("Conversion complete!")
+        )
+        
         self.worker.warning.connect(self.warning)
+        self.worker.warning.connect(self.choose_button.enable)
         self.worker.warning.connect(
             lambda: self.label.setText("Conversion failed.")
         )
+
+        self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
-        self.thread.finished.connect(self.choose_button.enable)
-        self.thread.finished.connect(
-            lambda: self.label.setText("Conversion complete!")
-        )
+        
 
 
-    def warning(self):
+    def warning(self, error):
         """Generates a pop-up warning that the conversion failed.
 
         Triggered by an incoming signal from the secondary thread.
         """
         title = "Conversion error"
-        message = "Unable to convert file."
+        message = f"Unable to convert file. Error:{error}"
         warning = QMessageBox.warning(
             None,
             title,

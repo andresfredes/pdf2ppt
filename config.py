@@ -27,3 +27,15 @@ BLANK_SLIDE = 6
 
 # Template file location
 PPT_TEMPLATE = "./template2.pptx"
+
+# 16:9 ratio range - to allow for floating point rounding / non-pixel perfect
+# images to still be loosely categorised as 16:9
+RATIO_16_9 = {
+    "MIN": 1.75,
+    "MAX": 1.80,
+}
+
+SLIDE = {
+    "WIDTH": 28.0,
+    "HEIGHT": 15.75,
+}

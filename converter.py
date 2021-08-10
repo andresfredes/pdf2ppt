@@ -18,11 +18,13 @@
 """coverter.py: Custom worker object to run conversion on secondary thread.
 This avoids locking the gui during file processing.
 """
+from io import BytesIO
 import fitz
 from pptx import Presentation
+from pptx.util import Cm
 from PyQt5.QtCore import QObject, pyqtSignal
 from dataclasses import dataclass
-from config import BLANK_SLIDE, PPT_TEMPLATE
+from config import BLANK_SLIDE, PPT_TEMPLATE, RATIO_16_9, SLIDE
 
 class Converter(QObject):
     """Simple worker function to handle file conversion in a secondary thread
@@ -60,7 +62,7 @@ class Converter(QObject):
             self.convert(self.path, self.ppt_cfg)
         except Exception as e:
             print(e)
-            self.warning.emit()
+            self.warning.emit(e)
         else:
             self.finished.emit()
 
@@ -84,24 +86,42 @@ class Converter(QObject):
                     annots=ppt_cfg.show_annotations,
                 )
                 img = {
-                    "stream": pixmap.pil_tobytes(
+                    "stream": BytesIO(pixmap.pil_tobytes(
                         format="JPEG",
                         optimize=True,
-                    ),
-                    "width": pixmap.w,
-                    "height": pixmap.h,
+                    )),
+                    "ratio": float(pixmap.w) / float(pixmap.h),
                 }
                 slide = ppt.slides.add_slide(slide_layout)
-
-                # add placeholder to presentation -------------------------------
-                # add image to placeholder ---------------------------------------
-
-
+                shapes = slide.shapes
+                if (img["ratio"] < RATIO_16_9["MIN"]):
+                    # Tall ratio, set height to full
+                    y = 0
+                    height = SLIDE["HEIGHT"]
+                    width = height * img["ratio"]
+                    x = (SLIDE["WIDTH"] - width) / 2
+                elif (img["ratio"] >= RATIO_16_9["MIN"] and
+                    img["ratio"] <= RATIO_16_9["MAX"]):
+                    # 16:9 ratio, height and width to full
+                    x = y = 0
+                    width = SLIDE["WIDTH"]
+                    height = SLIDE["HEIGHT"]
+                else:
+                    # Wide ratio, set width to full
+                    x = 0
+                    width = SLIDE["WIDTH"]
+                    height = width / img["ratio"]
+                    y = (SLIDE["HEIGHT"] - height) / 2
+                shapes.add_picture(
+                    img["stream"],
+                    Cm(x),
+                    Cm(y),
+                    Cm(width),
+                    Cm(height),
+                )
         output_path = f"{path.split('.')[0]}.pptx"
         ppt.save(output_path)
 
-    def convert_to_image(self, page):
-        return None
 
 @dataclass
 class Ppt_Config():
