@@ -105,7 +105,7 @@ class UI(QMainWindow):
         self.path = file_picker.getOpenFileName(
             None,
             "Select File",
-            "PDF - Portable Document Format (*.pdf)",
+            "",
         )[0]
         if self.path != "":
             if self.path.endswith(".pdf"):
